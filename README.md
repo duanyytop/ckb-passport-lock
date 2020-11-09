@@ -1,2 +1,13 @@
 # ckb-passport-lock
-E-Passport lock script on Nervos CKB
+
+Build contracts:
+
+```sh
+capsule build
+```
+
+Run tests:
+
+```sh
+capsule test
+```
