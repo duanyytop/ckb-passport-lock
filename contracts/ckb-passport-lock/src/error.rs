@@ -8,6 +8,8 @@ pub enum Error {
     LengthNotEnough,
     Encoding,
     // Add customized errors here...
+    RSAPubKeySigLengthError,
+    LoadPrefilledData,
 }
 
 impl From<SysError> for Error {
