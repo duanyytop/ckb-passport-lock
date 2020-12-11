@@ -7,9 +7,12 @@ pub enum Error {
     ItemMissing,
     LengthNotEnough,
     Encoding,
+    InvalidArgument,
     // Add customized errors here...
-    RSAPubKeySigLengthError,
     LoadPrefilledData,
+    WrongPubKey,
+    RSAPubKeySigLengthError,
+    ISO97962RSAVerifyError,
 }
 
 impl From<SysError> for Error {

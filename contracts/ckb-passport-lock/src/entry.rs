@@ -1,8 +1,90 @@
 // Import from `core` instead of from `std` since we are in no-std mode
 use core::result::Result;
+use alloc::vec::Vec;
+
+use ckb_std::{
+    ckb_constants::Source,
+    ckb_types::{bytes::Bytes, prelude::*},
+    high_level::{load_script, load_witness_args, load_transaction},
+};
 
 use crate::error::Error;
 
+mod rsa;
+mod hash;
+
+const ISO9796_2_SIGNATURE_LEN: usize = 512;  // in byte
+const PUBLIC_KEY_N_LEN: usize = 128;
+const PUBLIC_KEY_E_LEN: usize = 4; 
+const WITNESS_LEN: usize = 644;
+
 pub fn main() -> Result<(), Error> {
-    Ok(())
+    let script = load_script()?;
+    let args: Bytes = script.args().unpack();
+    if args.len() != 20 {
+        return Err(Error::InvalidArgument);
+    }
+
+    let witness_args = load_witness_args(0, Source::GroupInput)?;
+    let witness: Bytes = witness_args
+          .lock()
+          .to_opt()
+          .ok_or(Error::Encoding)?
+          .unpack();
+
+    let mut signature = [0u8; ISO9796_2_SIGNATURE_LEN];
+    let mut pub_key_n = [0u8; PUBLIC_KEY_N_LEN];
+    let mut pub_key_e = [0u8; PUBLIC_KEY_E_LEN];
+    signature.copy_from_slice(&witness[0..ISO9796_2_SIGNATURE_LEN]);
+    pub_key_n.copy_from_slice(&witness[ISO9796_2_SIGNATURE_LEN..(ISO9796_2_SIGNATURE_LEN + PUBLIC_KEY_N_LEN)]);
+    pub_key_e.copy_from_slice(&witness[(WITNESS_LEN - PUBLIC_KEY_E_LEN)..]);
+
+    let pub_key_e = u32::from_le_bytes(pub_key_e);
+
+    let pub_key_hash = calc_pub_key_hash(&pub_key_n, pub_key_e)?;
+
+    if args.len() != pub_key_hash.len() {
+        return Err(Error::WrongPubKey);
+    }
+    
+    let message = generate_message()?;
+
+    rsa::verify_iso9796_2_signature(&pub_key_n, pub_key_e, &message, &signature)
+}
+
+fn generate_message() -> Result<[u8; 32], Error> {
+    let witness_args = load_witness_args(0, Source::GroupInput)?;
+    let tx_hash = hash::blake2b_256(load_transaction()?.raw().as_slice());
+    let mut blake2b = hash::new_blake2b();
+    let mut message = [0u8; 32];
+    blake2b.update(&tx_hash);
+    let zero_lock: Bytes = {
+        let mut buf = Vec::new();
+        buf.resize(65, 0);
+        buf.into()
+    };
+    let witness_for_digest = witness_args
+        .as_builder()
+        .lock(Some(zero_lock).pack())
+        .build();
+    let witness_len = witness_for_digest.as_bytes().len() as u64;
+    blake2b.update(&witness_len.to_le_bytes());
+    blake2b.update(&witness_for_digest.as_bytes());
+    blake2b.finalize(&mut message);
+
+    Ok(message)
+}
+
+fn calc_pub_key_hash(pub_key_n: &[u8], pub_key_e: u32) -> Result<[u8; 20], Error> {
+    let pub_key_vec_len = 4 + PUBLIC_KEY_N_LEN + PUBLIC_KEY_E_LEN; // key_size + n.len + e.len
+    let mut pub_key_vec = Vec::new();
+    for _ in 0..pub_key_vec_len {
+        pub_key_vec.push(0u8);
+    }
+
+    pub_key_vec[0..4].copy_from_slice(&rsa::ISO9796_2_KEY_SIZE.to_le_bytes());
+    pub_key_vec[4..8].copy_from_slice(&pub_key_e.to_le_bytes());
+    pub_key_vec[8..].copy_from_slice(&pub_key_n);
+
+    Ok(hash::blake2b_160(pub_key_vec))
 }

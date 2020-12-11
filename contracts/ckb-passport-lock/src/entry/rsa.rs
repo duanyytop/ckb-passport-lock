@@ -1,23 +1,31 @@
 use core::result::Result;
 use alloc::vec::Vec;
 
+use ckb_std::{
+    dynamic_loading::CKBDLContext,
+};
+
 use crate::error::Error;
 
 const CKB_VERIFY_ISO9796_2: u32 = 3;
-const ISO9796_2_KEY_SIZE: u32 = 1024;
+pub const ISO9796_2_KEY_SIZE: u32 = 1024;
 
 pub fn verify_iso9796_2_signature(n: &[u8], e: u32, msg: &[u8], sig: &[u8]) -> Result<(), Error> {
   let rsa_info = generate_rsa_info(&n, e, &sig)?;
-  let mut context = unsafe { CKBLContext::<[u8; 128 * 1024]>::new*() };
+  let mut context = unsafe { CKBDLContext::<[u8; 128 * 1024]>::new() };
   let lib = ckb_lib_iso97962_rsa::LibRSA::load(&mut context);
   let prefilled_data = lib.load_prefilled_data().map_err(|_err| Error::LoadPrefilledData)?;
-  let result = lib.validate_signature(prefilled_data, rsa_info.as_ref(), &msg.as_bytes())?;
-  result
+  match lib.validate_signature(&prefilled_data, rsa_info.as_ref(), &msg) {
+    Ok(_) => Ok(()),
+    Err(_) => Err(Error::ISO97962RSAVerifyError)
+  }
 }
+
+
 /** signature(in witness) memory layout
  * This structure contains the following information:
  * 1) Algorithm id (CKB_VERIFY_ISO9796_2 = 3)
- * 1) RSA Key Size
+ * 1) RSA Key Size , in bits. For example, 1024, 2048, 4096
  * 2) RSA Public Key
  * 3) RSA Signature data
  *
@@ -27,7 +35,7 @@ pub fn verify_iso9796_2_signature(n: &[u8], e: u32, msg: &[u8], sig: &[u8]) -> R
 The algorithm_id, key_size, E all occupy 4 bytes, in little endian (uint32_t).
 So the total length in byte is: 4 + 4 + 4 + key_size/8 + key_size/8.
 */
-pub fn generate_rsa_info(n: &[u8], e: u32, sig: &[u8]) -> Result<Vec<u8>, Error> {
+fn generate_rsa_info(n: &[u8], e: u32, sig: &[u8]) -> Result<Vec<u8>, Error> {
   if n.len() != sig.len() {
     return Err(Error::RSAPubKeySigLengthError)
   }
