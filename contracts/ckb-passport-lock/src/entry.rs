@@ -18,6 +18,8 @@ const PUBLIC_KEY_N_LEN: usize = 128;
 const PUBLIC_KEY_E_LEN: usize = 4; 
 const WITNESS_LEN: usize = 644;
 
+const ISO9796_2_KEY_SIZE: usize = 128;
+
 pub fn main() -> Result<(), Error> {
     let script = load_script()?;
     let args: Bytes = script.args().unpack();
@@ -41,7 +43,7 @@ pub fn main() -> Result<(), Error> {
 
     let pub_key_e = u32::from_le_bytes(pub_key_e);
 
-    let pub_key_hash = calc_pub_key_hash(&pub_key_n, pub_key_e)?;
+    let pub_key_hash = compute_pub_key_hash(&pub_key_n, pub_key_e)?;
 
     if args.len() != pub_key_hash.len() {
         return Err(Error::WrongPubKey);
@@ -49,7 +51,16 @@ pub fn main() -> Result<(), Error> {
     
     let message = generate_message()?;
 
-    rsa::verify_iso9796_2_signature(&pub_key_n, pub_key_e, &message, &signature)
+    for index in 0..4 {
+        let sub_message = &message[ISO9796_2_KEY_SIZE * index..ISO9796_2_KEY_SIZE * (index + 1)];
+        let sub_signature = &signature[ISO9796_2_KEY_SIZE * index..ISO9796_2_KEY_SIZE * (index + 1)];
+        match rsa::verify_iso9796_2_signature(&pub_key_n, pub_key_e, &sub_message, &sub_signature) {
+            Ok(_) => continue,
+            Err(err) => return Err(err)
+        }
+    }
+
+    Ok(())
 }
 
 fn generate_message() -> Result<[u8; 32], Error> {
@@ -75,7 +86,7 @@ fn generate_message() -> Result<[u8; 32], Error> {
     Ok(message)
 }
 
-fn calc_pub_key_hash(pub_key_n: &[u8], pub_key_e: u32) -> Result<[u8; 20], Error> {
+fn compute_pub_key_hash(pub_key_n: &[u8], pub_key_e: u32) -> Result<[u8; 20], Error> {
     let pub_key_vec_len = 4 + PUBLIC_KEY_N_LEN + PUBLIC_KEY_E_LEN; // key_size + n.len + e.len
     let mut pub_key_vec = Vec::new();
     for _ in 0..pub_key_vec_len {

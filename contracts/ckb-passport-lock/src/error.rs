@@ -7,7 +7,7 @@ pub enum Error {
     ItemMissing,
     LengthNotEnough,
     Encoding,
-    InvalidArgument,
+    InvalidArgument = 5,
     // Add customized errors here...
     LoadPrefilledData,
     WrongPubKey,
