@@ -8,13 +8,17 @@ use ckb_tool::ckb_types::{
     packed::{self, *},
     prelude::*,
 };
+use ckb_tool::ckb_error::assert_error_eq;
+use ckb_tool::ckb_script::ScriptError;
 use openssl::hash::MessageDigest;
 use openssl::pkey::{PKey, Private, Public};
 use openssl::rsa::Rsa;
 use openssl::sign::{Signer, Verifier};
 use std::fs;
 
-const MAX_CYCLES: u64 = 10_000_000;
+const MAX_CYCLES: u64 = 100_000_000;
+
+const ISO97962RSA_VERIFY_ERROR: i8 = 9;
 
 fn blake160(data: &[u8]) -> [u8; 20] {
     let mut buf = [0u8; 20];
@@ -28,7 +32,7 @@ fn sign_tx(
     private_key: &PKey<Private>,
     public_key: &PKey<Public>,
 ) -> TransactionView {
-    // see "signature (in witness) memory layout"
+    const MESSAGE_SINGLE_SIZE: usize = 8;
     const SIGNATURE_SIZE: usize = 128;
     const TX_SIGNATURE_SIZE: usize = 512;
 
@@ -66,18 +70,18 @@ fn sign_tx(
     let mut rsa_signature = [0u8; TX_SIGNATURE_SIZE];
     for index in 0..4 {
         let mut signer = Signer::new(MessageDigest::sha1(), &private_key).unwrap();
-        signer.update(&message[SIGNATURE_SIZE * index..SIGNATURE_SIZE * (index + 1)]).unwrap();
+        signer.update(&message[MESSAGE_SINGLE_SIZE * index..MESSAGE_SINGLE_SIZE * (index + 1)]).unwrap();
         rsa_signature[SIGNATURE_SIZE * index..SIGNATURE_SIZE * (index + 1)].copy_from_slice(&signer.sign_to_vec().unwrap());
     }
 
-    // see "signature (in witness) memory layout"
-    let (mut rsa_info, _) = calculate_pub_key_hash(public_key);
-    rsa_info.extend_from_slice(&rsa_signature);
+    let mut rsa_info = rsa_signature.clone().to_vec();
+    let (pub_key_info, _) = compute_pub_key_hash(public_key);
+    rsa_info.extend_from_slice(&pub_key_info);
 
     // verify it locally
-    let mut verifier = Verifier::new(MessageDigest::sha1(), &public_key).unwrap();
     for index in 0..4 {
-        verifier.update(&message[SIGNATURE_SIZE * index..SIGNATURE_SIZE * (index + 1)]).unwrap();
+        let mut verifier = Verifier::new(MessageDigest::sha1(), &public_key).unwrap();
+        verifier.update(&message[MESSAGE_SINGLE_SIZE * index..MESSAGE_SINGLE_SIZE * (index + 1)]).unwrap();
         assert!(verifier.verify(&rsa_signature[SIGNATURE_SIZE * index..SIGNATURE_SIZE * (index + 1)]).unwrap());
     }
 
@@ -97,7 +101,7 @@ fn sign_tx(
         .build()
 }
 
-fn calculate_pub_key_hash(public_key: &PKey<Public>) -> (Vec<u8>, Vec<u8>) {
+fn compute_pub_key_hash(public_key: &PKey<Public>) -> (Vec<u8>, Vec<u8>) {
     const ALGORITHM_ID: u32 = 3;
     let algorithm_id = ALGORITHM_ID.to_le_bytes();
     
@@ -158,7 +162,8 @@ fn test_wrong_signature() {
     let rsa_out_point = context.deploy_cell(rsa_bin);
     let rsa_dep = CellDep::new_builder().out_point(rsa_out_point).build();
 
-    let (_public_key_binary, public_key_hash) = calculate_pub_key_hash(&public_key);
+    let (_, public_key_hash) = compute_pub_key_hash(&public_key);
+
     // prepare scripts
     let lock_script = context
         .build_script(&out_point, public_key_hash.into())
@@ -203,7 +208,10 @@ fn test_wrong_signature() {
     let tx = sign_tx(tx, &private_key, &public_key);
 
     // run
-    let cycles = context
-        .verify_tx(&tx, MAX_CYCLES).expect("pass verification");
-    println!("consume cycles: {}", cycles);
+    let err = context.verify_tx(&tx, MAX_CYCLES).unwrap_err();
+    let script_cell_index = 0;
+    assert_error_eq!(
+        err,
+        ScriptError::ValidationFailure(ISO97962RSA_VERIFY_ERROR).input_lock_script(script_cell_index)
+    );
 }

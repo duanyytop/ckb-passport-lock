@@ -7,7 +7,7 @@ use ckb_std::{
 
 use crate::error::Error;
 
-const CKB_VERIFY_ISO9796_2: u32 = 3;
+pub const ALGORITHM_ID_ISO9796_2: u32 = 3;
 pub const ISO9796_2_KEY_SIZE: u32 = 1024;
 
 pub fn verify_iso9796_2_signature(n: &[u8], e: u32, msg: &[u8], sig: &[u8]) -> Result<(), Error> {
@@ -24,7 +24,7 @@ pub fn verify_iso9796_2_signature(n: &[u8], e: u32, msg: &[u8], sig: &[u8]) -> R
 
 /** signature(in witness) memory layout
  * This structure contains the following information:
- * 1) Algorithm id (CKB_VERIFY_ISO9796_2 = 3)
+ * 1) Algorithm id (ALGORITHM_ID_ISO9796_2 = 3)
  * 1) RSA Key Size , in bits. For example, 1024, 2048, 4096
  * 2) RSA Public Key
  * 3) RSA Signature data
@@ -48,7 +48,7 @@ fn generate_rsa_info(n: &[u8], e: u32, sig: &[u8]) -> Result<Vec<u8>, Error> {
     rsa_info.push(0u8);
   }
 
-  rsa_info[0..4].copy_from_slice(&CKB_VERIFY_ISO9796_2.to_le_bytes());
+  rsa_info[0..4].copy_from_slice(&ALGORITHM_ID_ISO9796_2.to_le_bytes());
   rsa_info[4..8].copy_from_slice(&ISO9796_2_KEY_SIZE.to_le_bytes());
   rsa_info[8..12].copy_from_slice(&e.to_le_bytes());
   rsa_info[12..(12 + n.len())].copy_from_slice(&n);
