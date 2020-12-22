@@ -1,23 +1,30 @@
 use core::result::Result;
 use alloc::vec::Vec;
-
-use ckb_std::{
-    dynamic_loading::CKBDLContext,
-};
-
+use ckb_lib_iso97962_rsa::LibRSA;
 use crate::error::Error;
 
 pub const ALGORITHM_ID_ISO9796_2: u32 = 3;
 pub const ISO9796_2_KEY_SIZE: u32 = 1024;
 
-pub fn verify_iso9796_2_signature(n: &[u8], e: u32, msg: &[u8], sig: &[u8]) -> Result<(), Error> {
+pub fn verify_iso9796_2_signature(lib: &LibRSA, n: &[u8], e: u32, msg: &[u8], sig: &[u8]) -> Result<(), Error> {
   let rsa_info = generate_rsa_info(&n, e, &sig)?;
-  let mut context = unsafe { CKBDLContext::<[u8; 128 * 1024]>::new() };
-  let lib = ckb_lib_iso97962_rsa::LibRSA::load(&mut context);
   let prefilled_data = lib.load_prefilled_data().map_err(|_err| Error::LoadPrefilledData)?;
   match lib.validate_signature(&prefilled_data, rsa_info.as_ref(), &msg) {
     Ok(_) => Ok(()),
-    Err(_) => Err(Error::ISO97962RSAVerifyError)
+    Err(err) => match err {
+      -51 => Err(Error::ISO97962InvalidArg1),
+      -52 => Err(Error::ISO97962InvalidArg2),
+      -53 => Err(Error::ISO97962InvalidArg3),
+      -54 => Err(Error::ISO97962InvalidArg4),
+      -55 => Err(Error::ISO97962InvalidArg5),
+      -56 => Err(Error::ISO97962InvalidArg6),
+      -57 => Err(Error::ISO97962InvalidArg7),
+      -58 => Err(Error::ISO97962InvalidArg8),
+      -59 => Err(Error::ISO97962InvalidArg9),
+      -60 => Err(Error::ISO97962MismatchHash),
+      -61 => Err(Error::ISO97962NotFullMsg),
+      _ => Err(Error::ISO97962RSAVerifyError)
+    }
   }
 }
 

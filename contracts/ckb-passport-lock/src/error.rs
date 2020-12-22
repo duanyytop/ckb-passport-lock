@@ -13,6 +13,17 @@ pub enum Error {
     WrongPubKey,
     RSAPubKeySigLengthError,
     ISO97962RSAVerifyError,
+    ISO97962InvalidArg1 = 10,
+    ISO97962InvalidArg2,
+    ISO97962InvalidArg3,
+    ISO97962InvalidArg4,
+    ISO97962InvalidArg5,
+    ISO97962InvalidArg6 = 15,
+    ISO97962InvalidArg7,
+    ISO97962InvalidArg8,
+    ISO97962InvalidArg9,
+    ISO97962MismatchHash,
+    ISO97962NotFullMsg = 20,
 }
 
 impl From<SysError> for Error {
