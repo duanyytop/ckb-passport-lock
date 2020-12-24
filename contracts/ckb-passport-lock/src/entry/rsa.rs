@@ -1,6 +1,6 @@
 use core::result::Result;
 use alloc::vec::Vec;
-use ckb_lib_iso97962_rsa::LibRSA;
+use ckb_lib_rsa::LibRSA;
 use crate::error::Error;
 
 pub const ALGORITHM_ID_ISO9796_2: u32 = 3;
@@ -8,8 +8,7 @@ pub const ISO9796_2_KEY_SIZE: u32 = 1024;
 
 pub fn verify_iso9796_2_signature(lib: &LibRSA, n: &[u8], e: u32, msg: &[u8], sig: &[u8]) -> Result<(), Error> {
   let rsa_info = generate_rsa_info(&n, e, &sig)?;
-  let prefilled_data = lib.load_prefilled_data().map_err(|_err| Error::LoadPrefilledData)?;
-  match lib.validate_signature(&prefilled_data, rsa_info.as_ref(), &msg) {
+  match lib.validate_signature(rsa_info.as_ref(), &msg) {
     Ok(_) => Ok(()),
     Err(err) => match err {
       -51 => Err(Error::ISO97962InvalidArg1),

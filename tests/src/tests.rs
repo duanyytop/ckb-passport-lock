@@ -18,7 +18,7 @@ use std::fs;
 
 const MAX_CYCLES: u64 = 100_000_000;
 
-const ERROR_ISO97962_INVALID_ARG9: i8 = 18;
+const ERROR_ISO97962_INVALID_ARG9: i8 = 17;
 
 const MESSAGE_SINGLE_SIZE: usize = 8;
 const SUB_SIGNATURE_SIZE: usize = 128;
@@ -146,11 +146,6 @@ fn generate_random_key() -> (PKey<Private>, PKey<Public>) {
 #[test]
 fn test_wrong_signature() {
     let (private_key, public_key) = generate_random_key();
-
-    let mut result = [0; 3];
-    let mut blake2b = new_blake2b();
-    blake2b.update(&[0; 32]);
-    blake2b.finalize(&mut result);
 
     // deploy contract
     let mut context = Context::default();

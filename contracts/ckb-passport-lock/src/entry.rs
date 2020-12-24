@@ -56,13 +56,13 @@ pub fn main() -> Result<(), Error> {
     
     let message = generate_message()?;
 
-    let mut context = unsafe { CKBDLContext::<[u8; 128 * 1024]>::new() };
-    let lib = ckb_lib_iso97962_rsa::LibRSA::load(&mut context);
+    let mut context = unsafe { CKBDLContext::<[u8; 1024 * 128]>::new() };
+    let lib = ckb_lib_rsa::LibRSA::load(&mut context);
 
     for index in 0..4 {
         let sub_message = &message[MESSAGE_SINGLE_SIZE * index..MESSAGE_SINGLE_SIZE * (index + 1)];
         let sub_signature = &signature[SUB_SIGNATURE_LEN * index..SUB_SIGNATURE_LEN * (index + 1)];
-        match rsa::verify_iso9796_2_signature(&lib, &pub_key_n, pub_key_e, &sub_message, &sub_signature) {
+        match rsa::verify_iso9796_2_signature(&lib, &pub_key_n, pub_key_e, sub_message, sub_signature) {
             Ok(_) => continue,
             Err(err) => return Err(err)
         }
