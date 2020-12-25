@@ -39,6 +39,7 @@ pub fn verify_iso9796_2_signature(lib: &LibRSA, n: &[u8], e: u32, msg: &[u8], si
  algorithm_id | key_size | E |  N (key_size/8 bytes) | RSA Signature (key_size/8 bytes) |
 -----------------------------------------------------------------------------------------
 The algorithm_id, key_size, E all occupy 4 bytes, in little endian (uint32_t).
+The N must be little endian with [u8; 128]
 So the total length in byte is: 4 + 4 + 4 + key_size/8 + key_size/8.
 */
 fn generate_rsa_info(n: &[u8], e: u32, sig: &[u8]) -> Result<Vec<u8>, Error> {
