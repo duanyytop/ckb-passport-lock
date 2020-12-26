@@ -8,7 +8,7 @@ use ckb_std::{
     error::SysError,
     dynamic_loading::CKBDLContext,
     ckb_types::{bytes::Bytes, prelude::*},
-    high_level::{load_script, load_witness_args, load_transaction},
+    high_level::{load_script, load_witness_args, load_transaction, load_tx_hash},
 };
 use crate::error::Error;
 
@@ -21,6 +21,7 @@ const SUB_SIGNATURE_LEN: usize = 128;
 const ALGORITHM_ID_AND_KEY_SIZE: usize = 8; 
 const PUBLIC_KEY_E_LEN: usize = 4; 
 const PUBLIC_KEY_N_LEN: usize = 128;
+const SIGNATURE_TOTAL_LEN: usize = 652; 
 
 const MAX_WITNESS_SIZE: usize = 32768;
 
@@ -73,13 +74,13 @@ pub fn main() -> Result<(), Error> {
 
 fn generate_message() -> Result<[u8; 32], Error> {
     let witness_args = load_witness_args(0, Source::GroupInput)?;
-    let tx_hash = hash::blake2b_256(load_transaction()?.raw().as_slice());
+    let tx_hash = load_tx_hash()?;
     let mut blake2b = hash::new_blake2b();
     let mut message = [0u8; 32];
     blake2b.update(&tx_hash);
     let zero_lock: Bytes = {
         let mut buf = Vec::new();
-        buf.resize(65, 0);
+        buf.resize(SIGNATURE_TOTAL_LEN, 0);
         buf.into()
     };
     let witness_for_digest = witness_args

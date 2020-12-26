@@ -16,9 +16,9 @@ use openssl::rsa::Rsa;
 use openssl::sign::{Signer, Verifier};
 use std::fs;
 
-const MAX_CYCLES: u64 = 100_000_000;
+const MAX_CYCLES: u64 = 20_000_000;
 
-const ERROR_ISO97962_INVALID_ARG9: i8 = 17;
+const ISO97962_RSA_VERIFY_ERROR: i8 = 8;
 
 const MESSAGE_SINGLE_SIZE: usize = 8;
 const SUB_SIGNATURE_SIZE: usize = 128;
@@ -45,6 +45,7 @@ fn sign_tx(
     let mut blake2b = new_blake2b();
     let mut message = [0u8; 32];
     blake2b.update(&tx_hash.raw_data());
+
     // digest the first witness
     let witness = WitnessArgs::default();
     let zero_lock: Bytes = {
@@ -208,6 +209,6 @@ fn test_wrong_signature() {
     let script_cell_index = 0;
     assert_error_eq!(
         err,
-        ScriptError::ValidationFailure(ERROR_ISO97962_INVALID_ARG9).input_lock_script(script_cell_index)
+        ScriptError::ValidationFailure(ISO97962_RSA_VERIFY_ERROR).input_lock_script(script_cell_index)
     );
 }
