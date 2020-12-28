@@ -23,8 +23,6 @@ const PUBLIC_KEY_E_LEN: usize = 4;
 const PUBLIC_KEY_N_LEN: usize = 128;
 const SIGNATURE_TOTAL_LEN: usize = 652; 
 
-const MAX_WITNESS_SIZE: usize = 32768;
-
 pub fn main() -> Result<(), Error> {
     let script = load_script()?;
     let args: Bytes = script.args().unpack();
@@ -93,7 +91,7 @@ fn generate_message() -> Result<[u8; 32], Error> {
 
     // Digest same group witnesses
     let mut i = 1;
-    let mut witness_buf = [0u8; MAX_WITNESS_SIZE];
+    let mut witness_buf = Vec::new();
     loop {
         match load_witness(&mut witness_buf, 0, i, Source::GroupInput) {
             Ok(_witness) => {
