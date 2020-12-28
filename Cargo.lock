@@ -449,9 +449,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "ckb-lib-iso97962-rsa"
+name = "ckb-lib-rsa"
 version = "0.1.0"
 dependencies = [
+ "blake2b-rs",
  "ckb-std",
 ]
 
@@ -529,7 +530,7 @@ name = "ckb-passport-lock"
 version = "0.1.0"
 dependencies = [
  "blake2b-ref",
- "ckb-lib-iso97962-rsa",
+ "ckb-lib-rsa",
  "ckb-std",
 ]
 

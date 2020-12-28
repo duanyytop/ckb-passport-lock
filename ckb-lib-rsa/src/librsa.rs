@@ -1,7 +1,4 @@
-use crate::alloc::{
-    alloc::{alloc, Layout},
-    boxed::Box,
-};
+use alloc::vec::Vec;
 use crate::code_hashes::CODE_HASH_RSA;
 use ckb_std::dynamic_loading::{CKBDLContext, Symbol};
 
@@ -18,9 +15,6 @@ type ValidateSignature = unsafe extern "C" fn(
 
 /// Symbol name
 const VALIDATE_SIGNATURE: &[u8; 18] = b"validate_signature";
-
-const RSA_DATA_SIZE: usize = 256;
-pub struct PrefilledData(Box<[u8; RSA_DATA_SIZE]>);
 
 pub struct LibRSA {
     validate_signature: Symbol<ValidateSignature>,
@@ -39,18 +33,9 @@ impl LibRSA {
         }
     }
 
-    pub fn load_prefilled_data(&self) -> Result<PrefilledData, i32> {
-        let data = unsafe {
-            let layout = Layout::new::<[u8; 256]>();
-            let raw_allocation = alloc(layout) as *mut [u8; 256];
-            Box::from_raw(raw_allocation)
-        };
-        Ok(PrefilledData(data))
-    }
 
     pub fn validate_signature(
         &self,
-        prefilled_data: &PrefilledData,
         signature: &[u8],
         message: &[u8],
     ) -> Result<(), i32> {
@@ -60,7 +45,7 @@ impl LibRSA {
         let f = &self.validate_signature;
         let error_code = unsafe {
             f(
-                prefilled_data.0.as_ptr(),
+                Vec::new().as_ptr(),
                 signature.as_ptr(),
                 signature.len() as u64,
                 message.as_ptr(),

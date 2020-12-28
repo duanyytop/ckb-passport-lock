@@ -9,7 +9,6 @@ pub enum Error {
     Encoding,
     InvalidArgument = 5,
     // Add customized errors here...
-    LoadPrefilledData,
     WrongPubKey,
     RSAPubKeySigLengthError,
     ISO97962RSAVerifyError,

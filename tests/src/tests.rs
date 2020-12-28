@@ -16,9 +16,15 @@ use openssl::rsa::Rsa;
 use openssl::sign::{Signer, Verifier};
 use std::fs;
 
-const MAX_CYCLES: u64 = 100_000_000;
+const MAX_CYCLES: u64 = 20_000_000;
 
-const ISO97962RSA_VERIFY_ERROR: i8 = 9;
+const ISO97962_RSA_VERIFY_ERROR: i8 = 8;
+
+const MESSAGE_SINGLE_SIZE: usize = 8;
+const SUB_SIGNATURE_SIZE: usize = 128;
+const TX_SIGNATURE_SIZE: usize = 512;
+const SIGN_INFO_SIZE: usize = 652;  // 512 + 140
+const ALGORITHM_ID: u32 = 3;
 
 fn blake160(data: &[u8]) -> [u8; 20] {
     let mut buf = [0u8; 20];
@@ -32,10 +38,6 @@ fn sign_tx(
     private_key: &PKey<Private>,
     public_key: &PKey<Public>,
 ) -> TransactionView {
-    const MESSAGE_SINGLE_SIZE: usize = 8;
-    const SIGNATURE_SIZE: usize = 128;
-    const TX_SIGNATURE_SIZE: usize = 512;
-
     let witnesses_len = tx.witnesses().len();
     let tx_hash = tx.hash();
 
@@ -43,11 +45,12 @@ fn sign_tx(
     let mut blake2b = new_blake2b();
     let mut message = [0u8; 32];
     blake2b.update(&tx_hash.raw_data());
+
     // digest the first witness
     let witness = WitnessArgs::default();
     let zero_lock: Bytes = {
         let mut buf = Vec::new();
-        buf.resize(TX_SIGNATURE_SIZE, 0);
+        buf.resize(SIGN_INFO_SIZE, 0);
         buf.into()
     };
     let witness_for_digest = witness
@@ -71,24 +74,24 @@ fn sign_tx(
     for index in 0..4 {
         let mut signer = Signer::new(MessageDigest::sha1(), &private_key).unwrap();
         signer.update(&message[MESSAGE_SINGLE_SIZE * index..MESSAGE_SINGLE_SIZE * (index + 1)]).unwrap();
-        rsa_signature[SIGNATURE_SIZE * index..SIGNATURE_SIZE * (index + 1)].copy_from_slice(&signer.sign_to_vec().unwrap());
+        rsa_signature[SUB_SIGNATURE_SIZE * index..SUB_SIGNATURE_SIZE * (index + 1)].copy_from_slice(&signer.sign_to_vec().unwrap());
     }
 
-    let mut rsa_info = rsa_signature.clone().to_vec();
-    let (pub_key_info, _) = compute_pub_key_hash(public_key);
-    rsa_info.extend_from_slice(&pub_key_info);
+    let mut signed_signature = rsa_signature.clone().to_vec();
+    let (mut rsa_info, _) = compute_pub_key_hash(public_key);
+    signed_signature.append(&mut rsa_info);
 
     // verify it locally
     for index in 0..4 {
         let mut verifier = Verifier::new(MessageDigest::sha1(), &public_key).unwrap();
         verifier.update(&message[MESSAGE_SINGLE_SIZE * index..MESSAGE_SINGLE_SIZE * (index + 1)]).unwrap();
-        assert!(verifier.verify(&rsa_signature[SIGNATURE_SIZE * index..SIGNATURE_SIZE * (index + 1)]).unwrap());
+        assert!(verifier.verify(&rsa_signature[SUB_SIGNATURE_SIZE * index..SUB_SIGNATURE_SIZE * (index + 1)]).unwrap());
     }
 
     signed_witnesses.push(
         witness
             .as_builder()
-            .lock(Some(Bytes::from(rsa_info)).pack())
+            .lock(Some(Bytes::from(signed_signature)).pack())
             .build()
             .as_bytes()
             .pack(),
@@ -102,7 +105,6 @@ fn sign_tx(
 }
 
 fn compute_pub_key_hash(public_key: &PKey<Public>) -> (Vec<u8>, Vec<u8>) {
-    const ALGORITHM_ID: u32 = 3;
     let algorithm_id = ALGORITHM_ID.to_le_bytes();
     
     let mut result: Vec<u8> = vec![];
@@ -145,11 +147,6 @@ fn generate_random_key() -> (PKey<Private>, PKey<Public>) {
 #[test]
 fn test_wrong_signature() {
     let (private_key, public_key) = generate_random_key();
-
-    let mut result = [0; 3];
-    let mut blake2b = new_blake2b();
-    blake2b.update(&[0; 32]);
-    blake2b.finalize(&mut result);
 
     // deploy contract
     let mut context = Context::default();
@@ -212,6 +209,6 @@ fn test_wrong_signature() {
     let script_cell_index = 0;
     assert_error_eq!(
         err,
-        ScriptError::ValidationFailure(ISO97962RSA_VERIFY_ERROR).input_lock_script(script_cell_index)
+        ScriptError::ValidationFailure(ISO97962_RSA_VERIFY_ERROR).input_lock_script(script_cell_index)
     );
 }

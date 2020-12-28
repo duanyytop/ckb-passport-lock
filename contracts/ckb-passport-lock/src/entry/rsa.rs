@@ -1,23 +1,16 @@
 use core::result::Result;
 use alloc::vec::Vec;
-
-use ckb_std::{
-    dynamic_loading::CKBDLContext,
-};
-
+use ckb_lib_rsa::LibRSA;
 use crate::error::Error;
 
 pub const ALGORITHM_ID_ISO9796_2: u32 = 3;
 pub const ISO9796_2_KEY_SIZE: u32 = 1024;
 
-pub fn verify_iso9796_2_signature(n: &[u8], e: u32, msg: &[u8], sig: &[u8]) -> Result<(), Error> {
+pub fn verify_iso9796_2_signature(lib: &LibRSA, n: &[u8], e: u32, msg: &[u8], sig: &[u8]) -> Result<(), Error> {
   let rsa_info = generate_rsa_info(&n, e, &sig)?;
-  let mut context = unsafe { CKBDLContext::<[u8; 128 * 1024]>::new() };
-  let lib = ckb_lib_iso97962_rsa::LibRSA::load(&mut context);
-  let prefilled_data = lib.load_prefilled_data().map_err(|_err| Error::LoadPrefilledData)?;
-  match lib.validate_signature(&prefilled_data, rsa_info.as_ref(), &msg) {
+  match lib.validate_signature(rsa_info.as_ref(), &msg) {
     Ok(_) => Ok(()),
-    Err(_) => Err(Error::ISO97962RSAVerifyError)
+    Err(_err) =>  Err(Error::ISO97962RSAVerifyError)
   }
 }
 
@@ -33,6 +26,7 @@ pub fn verify_iso9796_2_signature(n: &[u8], e: u32, msg: &[u8], sig: &[u8]) -> R
  algorithm_id | key_size | E |  N (key_size/8 bytes) | RSA Signature (key_size/8 bytes) |
 -----------------------------------------------------------------------------------------
 The algorithm_id, key_size, E all occupy 4 bytes, in little endian (uint32_t).
+The N must be little endian with [u8; 128]
 So the total length in byte is: 4 + 4 + 4 + key_size/8 + key_size/8.
 */
 fn generate_rsa_info(n: &[u8], e: u32, sig: &[u8]) -> Result<Vec<u8>, Error> {

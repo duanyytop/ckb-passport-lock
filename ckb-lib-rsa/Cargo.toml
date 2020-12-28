@@ -1,5 +1,5 @@
 [package]
-name = "ckb-lib-iso97962-rsa"
+name = "ckb-lib-rsa"
 version = "0.1.0"
 authors = ["dylan <duanyytop@gmail.com>"]
 edition = "2018"
@@ -8,3 +8,13 @@ edition = "2018"
 
 [dependencies]
 ckb-std = "0.7.1"
+
+[build-dependencies]
+blake2b-rs = "0.1.5"
+
+[profile.release]
+overflow-checks = true
+opt-level = 's'
+lto = true
+codegen-units = 1
+panic = 'abort'
