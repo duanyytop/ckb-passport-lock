@@ -10,7 +10,20 @@ pub fn verify_iso9796_2_signature(lib: &LibRSA, n: &[u8], e: u32, msg: &[u8], si
   let rsa_info = generate_rsa_info(&n, e, &sig)?;
   match lib.validate_signature(rsa_info.as_ref(), &msg) {
     Ok(_) => Ok(()),
-    Err(_err) =>  Err(Error::ISO97962RSAVerifyError)
+    Err(err) => match err {
+      -51 => Err(Error::ISO97962InvalidArg1),
+      -52 => Err(Error::ISO97962InvalidArg2),
+      -53 => Err(Error::ISO97962InvalidArg3),
+      -54 => Err(Error::ISO97962InvalidArg4),
+      -55 => Err(Error::ISO97962InvalidArg5),
+      -56 => Err(Error::ISO97962InvalidArg6),
+      -57 => Err(Error::ISO97962InvalidArg7),
+      -58 => Err(Error::ISO97962InvalidArg8),
+      -59 => Err(Error::ISO97962InvalidArg9),
+      -60 => Err(Error::ISO97962MismatchHash),
+      -61 => Err(Error::ISO97962NotFullMsg),
+      _ => Err(Error::ISO97962RSAVerifyError)
+    }
   }
 }
 

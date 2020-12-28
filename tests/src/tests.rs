@@ -16,9 +16,10 @@ use openssl::rsa::Rsa;
 use openssl::sign::{Signer, Verifier};
 use std::fs;
 
-const MAX_CYCLES: u64 = 20_000_000;
+const MAX_CYCLES: u64 = 70_000_000;
 
-const ISO97962_RSA_VERIFY_ERROR: i8 = 8;
+const ERROR_ISO97962_INVALID_ARG9: i8 = 17;
+const WRONG_PUB_KEY: i8 = 6;
 
 const MESSAGE_SINGLE_SIZE: usize = 8;
 const SUB_SIGNATURE_SIZE: usize = 128;
@@ -37,6 +38,7 @@ fn sign_tx(
     tx: TransactionView,
     private_key: &PKey<Private>,
     public_key: &PKey<Public>,
+    is_pub_key_hash_error: bool
 ) -> TransactionView {
     let witnesses_len = tx.witnesses().len();
     let tx_hash = tx.hash();
@@ -78,7 +80,7 @@ fn sign_tx(
     }
 
     let mut signed_signature = rsa_signature.clone().to_vec();
-    let (mut rsa_info, _) = compute_pub_key_hash(public_key);
+    let (mut rsa_info, _) = compute_pub_key_hash(public_key, is_pub_key_hash_error);
     signed_signature.append(&mut rsa_info);
 
     // verify it locally
@@ -104,7 +106,7 @@ fn sign_tx(
         .build()
 }
 
-fn compute_pub_key_hash(public_key: &PKey<Public>) -> (Vec<u8>, Vec<u8>) {
+fn compute_pub_key_hash(public_key: &PKey<Public>, is_pub_key_hash_error: bool) -> (Vec<u8>, Vec<u8>) {
     let algorithm_id = ALGORITHM_ID.to_le_bytes();
     
     let mut result: Vec<u8> = vec![];
@@ -116,7 +118,13 @@ fn compute_pub_key_hash(public_key: &PKey<Public>) -> (Vec<u8>, Vec<u8>) {
 
     let rsa_public_key = public_key.rsa().unwrap();
 
-    let mut e = rsa_public_key.e().to_vec();
+    let mut e = if is_pub_key_hash_error {
+        let mut vec = rsa_public_key.e().to_vec();
+        vec.insert(0, 1);
+        vec
+    } else {
+        rsa_public_key.e().to_vec()
+    };
     let mut n = rsa_public_key.n().to_vec();
     e.reverse();
     n.reverse();
@@ -159,7 +167,7 @@ fn test_wrong_signature() {
     let rsa_out_point = context.deploy_cell(rsa_bin);
     let rsa_dep = CellDep::new_builder().out_point(rsa_out_point).build();
 
-    let (_, public_key_hash) = compute_pub_key_hash(&public_key);
+    let (_, public_key_hash) = compute_pub_key_hash(&public_key, false);
 
     // prepare scripts
     let lock_script = context
@@ -168,47 +176,153 @@ fn test_wrong_signature() {
     let lock_script_dep = CellDep::new_builder().out_point(out_point).build();
 
     // prepare cells
-    let input_out_point = context.create_cell(
+    let input_out_point1 = context.create_cell(
         CellOutput::new_builder()
             .capacity(1000u64.pack())
             .lock(lock_script.clone())
             .build(),
         Bytes::new(),
     );
-    let input = CellInput::new_builder()
-        .previous_output(input_out_point)
-        .build();
+    let input_out_point2 = context.create_cell(
+        CellOutput::new_builder()
+            .capacity(300u64.pack())
+            .lock(lock_script.clone())
+            .build(),
+        Bytes::new(),
+    );
+
+    let inputs = vec![
+        CellInput::new_builder()
+            .previous_output(input_out_point1)
+            .build(),
+        CellInput::new_builder()
+            .previous_output(input_out_point2)
+            .build(),
+    ];
     let outputs = vec![
         CellOutput::new_builder()
             .capacity(500u64.pack())
             .lock(lock_script.clone())
             .build(),
         CellOutput::new_builder()
-            .capacity(500u64.pack())
+            .capacity(800u64.pack())
             .lock(lock_script)
             .build(),
     ];
 
     let outputs_data = vec![Bytes::new(); 2];
+    let mut witnesses = vec![];
+    for _ in 0..inputs.len() {
+        witnesses.push(Bytes::new())
+    }
 
     // build transaction
     let tx = TransactionBuilder::default()
-        .input(input)
+        .inputs(inputs)
         .outputs(outputs)
         .outputs_data(outputs_data.pack())
         .cell_dep(lock_script_dep)
         .cell_dep(rsa_dep)
+        .witnesses(witnesses.pack())
         .build();
     let tx = context.complete_tx(tx);
 
     // sign
-    let tx = sign_tx(tx, &private_key, &public_key);
+    let tx = sign_tx(tx, &private_key, &public_key, false);
 
     // run
     let err = context.verify_tx(&tx, MAX_CYCLES).unwrap_err();
     let script_cell_index = 0;
     assert_error_eq!(
         err,
-        ScriptError::ValidationFailure(ISO97962_RSA_VERIFY_ERROR).input_lock_script(script_cell_index)
+        ScriptError::ValidationFailure(ERROR_ISO97962_INVALID_ARG9).input_lock_script(script_cell_index)
+    );
+}
+
+
+#[test]
+fn test_wrong_pub_key() {
+    let (private_key, public_key) = generate_random_key();
+
+    // deploy contract
+    let mut context = Context::default();
+    let contract_bin: Bytes = Loader::default().load_binary("ckb-passport-lock");
+    let out_point = context.deploy_cell(contract_bin);
+
+    let rsa_bin: Bytes = fs::read("../ckb-miscellaneous-scripts/build/rsa_sighash_all")
+        .expect("load rsa")
+        .into();
+    let rsa_out_point = context.deploy_cell(rsa_bin);
+    let rsa_dep = CellDep::new_builder().out_point(rsa_out_point).build();
+
+    let (_, public_key_hash) = compute_pub_key_hash(&public_key, false);
+
+    // prepare scripts
+    let lock_script = context
+        .build_script(&out_point, public_key_hash.into())
+        .expect("script");
+    let lock_script_dep = CellDep::new_builder().out_point(out_point).build();
+
+    // prepare cells
+    let input_out_point1 = context.create_cell(
+        CellOutput::new_builder()
+            .capacity(1000u64.pack())
+            .lock(lock_script.clone())
+            .build(),
+        Bytes::new(),
+    );
+    let input_out_point2 = context.create_cell(
+        CellOutput::new_builder()
+            .capacity(300u64.pack())
+            .lock(lock_script.clone())
+            .build(),
+        Bytes::new(),
+    );
+
+    let inputs = vec![
+        CellInput::new_builder()
+            .previous_output(input_out_point1)
+            .build(),
+        CellInput::new_builder()
+            .previous_output(input_out_point2)
+            .build(),
+    ];
+    let outputs = vec![
+        CellOutput::new_builder()
+            .capacity(500u64.pack())
+            .lock(lock_script.clone())
+            .build(),
+        CellOutput::new_builder()
+            .capacity(800u64.pack())
+            .lock(lock_script)
+            .build(),
+    ];
+
+    let outputs_data = vec![Bytes::new(); 2];
+    let mut witnesses = vec![];
+    for _ in 0..inputs.len() {
+        witnesses.push(Bytes::new())
+    }
+
+    // build transaction
+    let tx = TransactionBuilder::default()
+        .inputs(inputs)
+        .outputs(outputs)
+        .outputs_data(outputs_data.pack())
+        .cell_dep(lock_script_dep)
+        .cell_dep(rsa_dep)
+        .witnesses(witnesses.pack())
+        .build();
+    let tx = context.complete_tx(tx);
+
+    // sign
+    let tx = sign_tx(tx, &private_key, &public_key, true);
+
+    // run
+    let err = context.verify_tx(&tx, MAX_CYCLES).unwrap_err();
+    let script_cell_index = 0;
+    assert_error_eq!(
+        err,
+        ScriptError::ValidationFailure(WRONG_PUB_KEY).input_lock_script(script_cell_index)
     );
 }
