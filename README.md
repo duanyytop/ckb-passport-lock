@@ -114,4 +114,4 @@ recipe:
 Deployment complete
 ```
 
-Now the cheque script has been deployed, you can refer to this script by using `tx_hash: 0x8944b5149074321e5cad1c18dbf575d7d46acdc17974e7c2c8afa320b3b772db index: 0` as `out_point`(your tx_hash should be another value).
+Now the passport lock script has been deployed, you can refer to this script by using `tx_hash: 0x8944b5149074321e5cad1c18dbf575d7d46acdc17974e7c2c8afa320b3b772db index: 0` as `out_point`(your tx_hash should be another value).
