@@ -117,6 +117,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf1de2fe8c75bc145a2f577add951f8134889b4795d47466a54a5c846d691693"
 
 [[package]]
+name = "blake2b-ref"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d9f6b7b71e3097ed6ee470bab30e1025dd1327eee94ab1e3040b5b5c3f992117"
+
+[[package]]
 name = "blake2b-rs"
 version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -154,9 +160,9 @@ checksum = "476e9cd489f9e121e02ffa6014a8ef220ecb15c05ed23fc34cca13925dc283fb"
 
 [[package]]
 name = "buddy-alloc"
-version = "0.3.0"
+version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "efba9eaa9fdf9fddf408904e3dc3dc414411053ef48c06edd3aac53d2d919e0e"
+checksum = "8ff9f338986406db85e2b5deb40a9255b796ca03a194c7457403d215173f3fd5"
 
 [[package]]
 name = "bumpalo"
@@ -229,15 +235,6 @@ dependencies = [
  "serde",
  "time",
  "winapi 0.3.9",
-]
-
-[[package]]
-name = "ckb-allocator"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "572ce0405d93e105d547f6d362c70c4b744e5e0984f9b9877c81afd070c8e2cc"
-dependencies = [
- "buddy-alloc",
 ]
 
 [[package]]
@@ -452,6 +449,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "ckb-lib-rsa"
+version = "0.1.0"
+dependencies = [
+ "blake2b-rs",
+ "ckb-std",
+]
+
+[[package]]
 name = "ckb-librocksdb-sys"
 version = "6.7.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -524,6 +529,8 @@ dependencies = [
 name = "ckb-passport-lock"
 version = "0.1.0"
 dependencies = [
+ "blake2b-ref",
+ "ckb-lib-rsa",
  "ckb-std",
 ]
 
@@ -624,12 +631,12 @@ dependencies = [
 
 [[package]]
 name = "ckb-std"
-version = "0.6.3"
+version = "0.7.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f40fb1a5a0049abb71ff043629517089ef256b8e63c403b9359f73b7040ac9c6"
+checksum = "35e14bf64c694f078d6d33bad7e2b9a87d129d8b4e4c9a6cfc4364e2c6eddbd9"
 dependencies = [
+ "buddy-alloc",
  "cc",
- "ckb-allocator",
  "ckb-standalone-types",
 ]
 
@@ -3013,6 +3020,7 @@ version = "0.1.0"
 dependencies = [
  "ckb-testtool",
  "ckb-tool",
+ "openssl",
 ]
 
 [[package]]

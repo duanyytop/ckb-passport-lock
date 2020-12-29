@@ -6,4 +6,6 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-ckb-std = "0.6.3"
+ckb-std = "0.7.1"
+ckb-lib-rsa = { path = "../../ckb-lib-rsa" }
+blake2b-ref = "0.1"
