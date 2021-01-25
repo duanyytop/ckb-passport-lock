@@ -13,7 +13,7 @@ fn main() {
     let out_path = Path::new("src").join("code_hashes.rs");
     let mut out_file = BufWriter::new(File::create(&out_path).expect("create code_hashes.rs"));
 
-    let path = "../ckb-productions-scripts/build/validate_signature_rsa";
+    let path = "../ckb-production-scripts/build/validate_signature_rsa";
 
     let mut buf = [0u8; BUF_SIZE];
 

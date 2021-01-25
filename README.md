@@ -27,7 +27,7 @@ git submodule init && git submodule update -r --init
 ```
 cd ckb-miscellaneous-scripts && git submodule init && git submodule update
 
-make all-via-docker
+make validate_signature_rsa-via-docker
 ```
 
 - Build contracts:
