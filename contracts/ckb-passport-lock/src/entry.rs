@@ -18,10 +18,10 @@ mod hash;
 const MESSAGE_SINGLE_SIZE: usize = 8;
 const SIGNATURE_LEN: usize = 512;  // in byte
 const SUB_SIGNATURE_LEN: usize = 128;
-const ALGORITHM_ID_AND_KEY_SIZE: usize = 8; 
+const COMMON_HEADER: usize = 4; 
 const PUBLIC_KEY_E_LEN: usize = 4; 
 const PUBLIC_KEY_N_LEN: usize = 128;
-const SIGNATURE_TOTAL_LEN: usize = 652; 
+const SIGNATURE_TOTAL_LEN: usize = 648; 
 
 pub fn main() -> Result<(), Error> {
     let script = load_script()?;
@@ -40,7 +40,7 @@ pub fn main() -> Result<(), Error> {
     let mut signature = [0u8; SIGNATURE_LEN];
     let mut pub_key_e = [0u8; PUBLIC_KEY_E_LEN];
     let mut pub_key_n = [0u8; PUBLIC_KEY_N_LEN];
-    let pub_key_index = SIGNATURE_LEN + ALGORITHM_ID_AND_KEY_SIZE;
+    let pub_key_index = SIGNATURE_LEN + COMMON_HEADER;
     signature.copy_from_slice(&witness[0..SIGNATURE_LEN]);
     pub_key_e.copy_from_slice(&witness[pub_key_index..(pub_key_index + PUBLIC_KEY_E_LEN)]);
     pub_key_n.copy_from_slice(&witness[(pub_key_index + PUBLIC_KEY_E_LEN)..]);
@@ -125,16 +125,15 @@ fn generate_message() -> Result<[u8; 32], Error> {
 }
 
 fn compute_pub_key_hash(pub_key_n: &[u8], pub_key_e: u32) -> Result<[u8; 20], Error> {
-    let pub_key_vec_len = ALGORITHM_ID_AND_KEY_SIZE + PUBLIC_KEY_N_LEN + PUBLIC_KEY_E_LEN; // algorithm_id + key_size + n.len + e.len
+    let pub_key_vec_len = COMMON_HEADER + PUBLIC_KEY_N_LEN + PUBLIC_KEY_E_LEN; // common_header + key_size + n.len + e.len
     let mut pub_key_vec = Vec::new();
     for _ in 0..pub_key_vec_len {
         pub_key_vec.push(0u8);
     }
 
-    pub_key_vec[0..4].copy_from_slice(&rsa::ALGORITHM_ID_ISO9796_2.to_le_bytes());
-    pub_key_vec[4..8].copy_from_slice(&rsa::ISO9796_2_KEY_SIZE.to_le_bytes());
-    pub_key_vec[8..12].copy_from_slice(&pub_key_e.to_le_bytes());
-    pub_key_vec[12..].copy_from_slice(&pub_key_n);
+    pub_key_vec[0..4].copy_from_slice(&rsa::get_common_header());
+    pub_key_vec[4..8].copy_from_slice(&pub_key_e.to_le_bytes());
+    pub_key_vec[8..].copy_from_slice(&pub_key_n);
 
     Ok(hash::blake2b_160(pub_key_vec))
 }

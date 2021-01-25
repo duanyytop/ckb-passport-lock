@@ -21,8 +21,7 @@ pub enum Error {
     ISO97962InvalidArg7 = 15,
     ISO97962InvalidArg8,
     ISO97962InvalidArg9,
-    ISO97962MismatchHash,
-    ISO97962NotFullMsg = 19,
+    ISO97962MismatchHash = 18,
 }
 
 impl From<SysError> for Error {
