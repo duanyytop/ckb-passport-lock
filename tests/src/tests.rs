@@ -24,8 +24,12 @@ const WRONG_PUB_KEY: i8 = 6;
 const MESSAGE_SINGLE_SIZE: usize = 8;
 const SUB_SIGNATURE_SIZE: usize = 128;
 const TX_SIGNATURE_SIZE: usize = 512;
-const SIGN_INFO_SIZE: usize = 652;  // 512 + 140
-const ALGORITHM_ID: u32 = 3;
+const SIGN_INFO_SIZE: usize = 648;  // 512 + 136
+
+const ISO9796_2_ALGORITHM_ID: u8 = 2;
+const ISO9796_2_KEY_SIZE: u8 = 1;  // 1024
+const ISO9796_2_PADDING: u8 = 0;
+const ISO9796_2_MD_SHA1: u8 = 4;
 
 fn blake160(data: &[u8]) -> [u8; 20] {
     let mut buf = [0u8; 20];
@@ -107,14 +111,8 @@ fn sign_tx(
 }
 
 fn compute_pub_key_hash(public_key: &PKey<Public>, is_pub_key_hash_error: bool) -> (Vec<u8>, Vec<u8>) {
-    let algorithm_id = ALGORITHM_ID.to_le_bytes();
-    
     let mut result: Vec<u8> = vec![];
-    result.extend_from_slice(&algorithm_id);
-
-    let key_size = public_key.bits() as u32;
-    let key_size_buff = key_size.to_le_bytes();
-    result.extend_from_slice(&key_size_buff);
+    result.extend_from_slice(&[ISO9796_2_ALGORITHM_ID, ISO9796_2_KEY_SIZE, ISO9796_2_PADDING, ISO9796_2_MD_SHA1]);
 
     let rsa_public_key = public_key.rsa().unwrap();
 
@@ -161,7 +159,7 @@ fn test_wrong_signature() {
     let contract_bin: Bytes = Loader::default().load_binary("ckb-passport-lock");
     let out_point = context.deploy_cell(contract_bin);
 
-    let rsa_bin: Bytes = fs::read("../ckb-miscellaneous-scripts/build/rsa_sighash_all")
+    let rsa_bin: Bytes = fs::read("../ckb-production-scripts/build/validate_signature_rsa")
         .expect("load rsa")
         .into();
     let rsa_out_point = context.deploy_cell(rsa_bin);
@@ -249,7 +247,7 @@ fn test_wrong_pub_key() {
     let contract_bin: Bytes = Loader::default().load_binary("ckb-passport-lock");
     let out_point = context.deploy_cell(contract_bin);
 
-    let rsa_bin: Bytes = fs::read("../ckb-miscellaneous-scripts/build/rsa_sighash_all")
+    let rsa_bin: Bytes = fs::read("../ckb-production-scripts/build/validate_signature_rsa")
         .expect("load rsa")
         .into();
     let rsa_out_point = context.deploy_cell(rsa_bin);

@@ -4,16 +4,16 @@ enable_type_id = true
 location = { file = "build/release/ckb-passport-lock" }
 
 [[cells]]
-name = "rsa_sighash_all"
+name = "validate_signature_rsa"
 enable_type_id = false
-location = { file = "ckb-miscellaneous-scripts/build/rsa_sighash_all" }
+location = { file = "ckb-production-scripts/build/validate_signature_rsa" }
 
 # Dep group cells
 [[dep_groups]]
 name = "dep_group"
 cells = [
   "ckb-passport-lock",
-  "rsa_sighash_all",
+  "validate_signature_rsa",
 ]
 
 # Replace with your own lock if you want to unlock deployed cells. 
