@@ -125,7 +125,7 @@ fn generate_message() -> Result<[u8; 32], Error> {
 }
 
 fn compute_pub_key_hash(pub_key_n: &[u8], pub_key_e: u32) -> Result<[u8; 20], Error> {
-    let pub_key_vec_len = COMMON_HEADER + PUBLIC_KEY_N_LEN + PUBLIC_KEY_E_LEN; // common_header + key_size + n.len + e.len
+    let pub_key_vec_len = COMMON_HEADER + PUBLIC_KEY_N_LEN + PUBLIC_KEY_E_LEN; // common_header + n.len + e.len
     let mut pub_key_vec = Vec::new();
     for _ in 0..pub_key_vec_len {
         pub_key_vec.push(0u8);

@@ -25,7 +25,7 @@ pub fn verify_iso9796_2_signature(lib: &LibRSA, n: &[u8], e: u32, msg: &[u8], si
 
 /** signature (in witness, or passed as arguments) memory layout
  * This structure contains the following information:
- * 1) Common header, 4 bytes, see RsaInfo
+ * 1) Common header, 4 bytes
  * 2) RSA Public Key
  * 3) RSA Signature data
  *
