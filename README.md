@@ -22,12 +22,12 @@ The lock script of e-passport on Nervos CKB using [Capsule](https://github.com/n
 git submodule init && git submodule update -r --init
 ```
 
-- Build the shared binary `rsa_sighash_all`:
+- Build the shared binary `validate_signature_rsa`:
 
 ```
-cd ckb-miscellaneous-scripts && git submodule init && git submodule update
+cd ckb-production-scripts && git submodule init && git submodule update
 
-make all-via-docker
+make validate_signature_rsa-via-docker
 ```
 
 - Build contracts:
